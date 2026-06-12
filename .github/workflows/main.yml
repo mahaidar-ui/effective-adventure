@@ -1,0 +1,35 @@
+name: VPS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  temp-vps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Install SSH
+        run: |
+          sudo apt update -y
+          sudo apt install -y openssh-server
+          sudo systemctl start ssh
+          echo "root:admin123" | sudo chpasswd
+          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
+          sudo service ssh restart
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-${{ github.run_id }}
+          tsIP=$(tailscale ip -4 | head -n 1)
+          echo "TAILSCALE_IP=$tsIP" >> $GITHUB_ENV
+
+      - name: Info
+        run: |
+          echo "IP: $TAILSCALE_IP"
+          echo "User: root"
+          echo "Pass: admin123"
+
+      - name: Keep Alive
+        run: sleep 6h
